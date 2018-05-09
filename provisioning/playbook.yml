@@ -1,0 +1,59 @@
+---
+- hosts: all
+  remote_user: vagrant
+  tasks:
+
+  - name: Add EPEL repository
+    yum_repository:
+      name: epel
+      description: EPEL
+      baseurl: https://download.fedoraproject.org/pub/epel/$releasever/$basearch/
+      gpgkey: https://getfedora.org/static/352C64E5.txt
+      gpgcheck: yes
+    become: true
+
+  - name: Install required packages
+    package:
+      name: "{{ item }}"
+      state: latest
+    become: true
+    with_items: "{{ install_packages }}"
+
+  - name: Start the default Apache service
+    service:
+      name: httpd
+      state: started
+    become: true
+
+  - name: Copy required kickstart files
+    copy:
+      src: "files/{{ item }}-ks"
+      dest: "/opt/{{ item }}-ks"
+      owner: root
+      group: root
+      mode: 0640
+    become: true
+    with_items: "{{ build_versions }}"
+
+  - name: Copy the build script
+    copy:
+      src: files/build.sh
+      dest: /opt/build.sh
+      owner: root
+      group: root
+      mode: 0755
+    become: true
+
+  - name: Copy the build_versions.json file
+    copy:
+      src: files/build_versions.json
+      dest: /opt/build_versions.json
+      owner: root
+      group: root
+      mode: 0755
+    become: true
+
+  - name: Build the required Docker filesystems
+    command: /opt/build.sh "{{ item }}"
+    become: true
+    with_items: "{{ build_versions }}"

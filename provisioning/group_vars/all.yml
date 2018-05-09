@@ -1,0 +1,6 @@
+---
+install_packages:
+  - httpd
+  - anaconda-tui
+  - lorax
+  - jq

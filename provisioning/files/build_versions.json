@@ -1,0 +1,7 @@
+{
+    "build_versions": [
+	    "centos-7.3.1611",
+	    "centos-7.4.1708",
+	    "centos-7.4.edge"
+    ]
+}

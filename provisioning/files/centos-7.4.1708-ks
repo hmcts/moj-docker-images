@@ -1,0 +1,220 @@
+# This is a minimal CentOS kickstart designed for docker.
+# It will not produce a bootable system
+# To use this kickstart, run the following command
+# livemedia-creator --make-tar \
+#   --iso=/path/to/boot.iso  \
+#   --ks=centos-7.ks \
+#   --image-name=centos-root.tar.xz
+#
+# Once the image has been generated, it can be imported into docker
+# by using: cat centos-root.tar.xz | docker import -i imagename
+
+# Basic setup information
+url --url="http://mirrors.kernel.org/centos/7.4.1708/os/x86_64/"
+install
+keyboard us
+rootpw --lock --iscrypted locked
+timezone --isUtc --nontp UTC
+selinux --enforcing
+firewall --disabled
+network --bootproto=dhcp --device=link --activate --onboot=on
+shutdown
+bootloader --disable
+lang en_US
+
+# Repositories to use
+repo --name="CentOS" --baseurl=http://mirrors.kernel.org/centos/7.4.1708/os/x86_64/ --cost=100
+
+# Disk setup
+zerombr
+clearpart --all --initlabel
+part / --size 3000 --fstype ext4
+
+# Package setup
+%packages --excludedocs --instLangs=en --nocore
+bind-utils
+bash
+yum
+vim-minimal
+centos-release
+less
+-kernel*
+-*firmware
+-firewalld-filesystem
+-os-prober
+-gettext*
+-GeoIP
+-bind-license
+-freetype
+iputils
+iproute
+systemd
+rootfiles
+-libteam
+-teamd
+tar
+passwd
+yum-utils
+yum-plugin-ovl
+
+
+%end
+
+%post --log=/anaconda-post.log
+# Post configure tasks for Docker
+
+# remove stuff we don't need that anaconda insists on
+# kernel needs to be removed by rpm, because of grubby
+rpm -e kernel
+
+yum -y remove bind-libs bind-libs-lite dhclient dhcp-common dhcp-libs \
+  dracut-network e2fsprogs e2fsprogs-libs ebtables ethtool file \
+  firewalld freetype gettext gettext-libs groff-base grub2 grub2-tools \
+  grubby initscripts iproute iptables kexec-tools libcroco libgomp \
+  libmnl libnetfilter_conntrack libnfnetlink libselinux-python lzo \
+  libunistring os-prober python-decorator python-slip python-slip-dbus \
+  snappy sysvinit-tools which linux-firmware GeoIP firewalld-filesystem
+
+#fix MoJ containers to point to Artifactory
+
+rm -f /etc/yum.repos.d/*.repo
+
+cat <<EOF > /etc/yum.repos.d/CentOS-Base.repo
+[base]
+baseurl = https://artifactory.reform.hmcts.net/artifactory/ext-centos/7.4.1708/os/x86_64/
+enabled = 1
+gpgcheck = 1
+gpgkey = file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+name = CentOS-7.4.1708 - Base
+
+[updates]
+baseurl = https://artifactory.reform.hmcts.net/artifactory/ext-centos/7.4.1708/updates/x86_64/
+enabled = 1
+gpgcheck = 1
+gpgkey = file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+name = CentOS-7.4.1708 - Updates
+
+[extras]
+baseurl = https://artifactory.reform.hmcts.net/artifactory/ext-centos/7.4.1708/extras/x86_64/
+enabled = 1
+gpgcheck = 1
+gpgkey = file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+name = CentOS-7.4.1708 - Extras
+
+[centosplus]
+baseurl = https://artifactory.reform.hmcts.net/artifactory/ext-centos/7.4.1708/centosplus/x86_64/
+enabled = 0
+gpgcheck = 1
+gpgkey = file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+name = CentOS-7.4.1708 - Plus
+EOF
+
+cat <<EOF > /etc/yum.repos.d/epel.repo
+[epel]
+baseurl = https://artifactory.reform.hmcts.net/artifactory/ext-epel
+enabled = 1
+gpgcheck = 1
+gpgkey = file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7
+name = Extra Packages for Enterprise Linux 7 - x86_64
+
+[epel-debuginfo]
+baseurl = https://artifactory.reform.hmcts.net/artifactory/ext-epel/debug
+enabled = 0
+gpgcheck = 1
+gpgkey = file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7
+name = Extra Packages for Enterprise Linux 7 - x86_64 - Debug
+EOF
+
+cat <<EOF > /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+
+mQINBFKuaIQBEAC1UphXwMqCAarPUH/ZsOFslabeTVO2pDk5YnO96f+rgZB7xArB
+OSeQk7B90iqSJ85/c72OAn4OXYvT63gfCeXpJs5M7emXkPsNQWWSju99lW+AqSNm
+jYWhmRlLRGl0OO7gIwj776dIXvcMNFlzSPj00N2xAqjMbjlnV2n2abAE5gq6VpqP
+vFXVyfrVa/ualogDVmf6h2t4Rdpifq8qTHsHFU3xpCz+T6/dGWKGQ42ZQfTaLnDM
+jToAsmY0AyevkIbX6iZVtzGvanYpPcWW4X0RDPcpqfFNZk643xI4lsZ+Y2Er9Yu5
+S/8x0ly+tmmIokaE0wwbdUu740YTZjCesroYWiRg5zuQ2xfKxJoV5E+Eh+tYwGDJ
+n6HfWhRgnudRRwvuJ45ztYVtKulKw8QQpd2STWrcQQDJaRWmnMooX/PATTjCBExB
+9dkz38Druvk7IkHMtsIqlkAOQMdsX1d3Tov6BE2XDjIG0zFxLduJGbVwc/6rIc95
+T055j36Ez0HrjxdpTGOOHxRqMK5m9flFbaxxtDnS7w77WqzW7HjFrD0VeTx2vnjj
+GqchHEQpfDpFOzb8LTFhgYidyRNUflQY35WLOzLNV+pV3eQ3Jg11UFwelSNLqfQf
+uFRGc+zcwkNjHh5yPvm9odR1BIfqJ6sKGPGbtPNXo7ERMRypWyRz0zi0twARAQAB
+tChGZWRvcmEgRVBFTCAoNykgPGVwZWxAZmVkb3JhcHJvamVjdC5vcmc+iQI4BBMB
+AgAiBQJSrmiEAhsPBgsJCAcDAgYVCAIJCgsEFgIDAQIeAQIXgAAKCRBqL66iNSxk
+5cfGD/4spqpsTjtDM7qpytKLHKruZtvuWiqt5RfvT9ww9GUUFMZ4ZZGX4nUXg49q
+ixDLayWR8ddG/s5kyOi3C0uX/6inzaYyRg+Bh70brqKUK14F1BrrPi29eaKfG+Gu
+MFtXdBG2a7OtPmw3yuKmq9Epv6B0mP6E5KSdvSRSqJWtGcA6wRS/wDzXJENHp5re
+9Ism3CYydpy0GLRA5wo4fPB5uLdUhLEUDvh2KK//fMjja3o0L+SNz8N0aDZyn5Ax
+CU9RB3EHcTecFgoy5umRj99BZrebR1NO+4gBrivIfdvD4fJNfNBHXwhSH9ACGCNv
+HnXVjHQF9iHWApKkRIeh8Fr2n5dtfJEF7SEX8GbX7FbsWo29kXMrVgNqHNyDnfAB
+VoPubgQdtJZJkVZAkaHrMu8AytwT62Q4eNqmJI1aWbZQNI5jWYqc6RKuCK6/F99q
+thFT9gJO17+yRuL6Uv2/vgzVR1RGdwVLKwlUjGPAjYflpCQwWMAASxiv9uPyYPHc
+ErSrbRG0wjIfAR3vus1OSOx3xZHZpXFfmQTsDP7zVROLzV98R3JwFAxJ4/xqeON4
+vCPFU6OsT3lWQ8w7il5ohY95wmujfr6lk89kEzJdOTzcn7DBbUru33CQMGKZ3Evt
+RjsC7FDbL017qxS+ZVA/HGkyfiu4cpgV8VUnbql5eAZ+1Ll6Dw==
+=hdPa
+-----END PGP PUBLIC KEY BLOCK-----
+EOF
+
+
+yum clean all
+
+#clean up unused directories
+rm -rf /boot
+rm -rf /etc/firewalld
+
+# Lock roots account, keep roots account password-less.
+passwd -l root
+
+#LANG="en_US"
+#echo "%_install_lang $LANG" > /etc/rpm/macros.image-language-conf
+
+awk '(NF==0&&!done){print "override_install_langs=en_US.utf8\ntsflags=nodocs";done=1}{print}' \
+    < /etc/yum.conf > /etc/yum.conf.new
+mv /etc/yum.conf.new /etc/yum.conf
+echo 'container' > /etc/yum/vars/infra
+
+
+##Setup locale properly
+# Commenting out, as this seems to no longer be needed
+#rm -f /usr/lib/locale/locale-archive
+#localedef -v -c -i en_US -f UTF-8 en_US.UTF-8
+
+## Remove some things we don't need
+rm -rf /var/cache/yum/x86_64
+rm -f /tmp/ks-script*
+rm -rf /var/log/anaconda
+rm -rf /tmp/ks-script*
+rm -rf /etc/sysconfig/network-scripts/ifcfg-*
+# do we really need a hardware database in a container?
+rm -rf /etc/udev/hwdb.bin
+rm -rf /usr/lib/udev/hwdb.d/*
+
+## Systemd fixes
+# no machine-id by default.
+:> /etc/machine-id
+# Fix /run/lock breakage since it's not tmpfs in docker
+umount /run
+systemd-tmpfiles --create --boot
+# Make sure login works
+rm /var/run/nologin
+
+#systemd fixup from https://github.com/CentOS/CentOS-Dockerfiles/blob/master/systemd/centos7/Dockerfile
+cd /lib/systemd/system/sysinit.target.wants
+for i in *; do
+    [ $i == systemd-tmpfiles-setup.service ] || rm -f $i
+done
+rm -f /lib/systemd/system/multi-user.target.wants/*
+rm -f /etc/systemd/system/*.wants/*
+rm -f /lib/systemd/system/local-fs.target.wants/*
+rm -f /lib/systemd/system/sockets.target.wants/*udev*
+rm -f /lib/systemd/system/sockets.target.wants/*initctl*
+rm -f /lib/systemd/system/basic.target.wants/*
+rm -f /lib/systemd/system/anaconda.target.wants/*
+
+#Generate installtime file record
+/bin/date +%Y%m%d_%H%M > /etc/BUILDTIME
+
+
+%end
