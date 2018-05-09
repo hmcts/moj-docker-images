@@ -15,8 +15,8 @@ versions that require building and then run `./moj-docker-images.sh`.
 
 ## TODO
 
-[ ] Push the built images back to the appropriate Docker repo
-[ ] Implement CIS benchmarking or similar security in the kickstart scripts
+- [ ] Push the built images back to the appropriate Docker repo
+- [ ] Implement CIS benchmarking or similar security in the kickstart scripts
 
 ## License
 
