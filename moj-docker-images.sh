@@ -29,7 +29,6 @@ if [ ${RES} -eq 0 ]; then
 	cat <<-EOF > "$BUILDROOT"/centos-"${Build}"/"${BUILDDATE}"/Dockerfile
 		FROM scratch
 		ADD centos-${Build}-docker.tar.xz /
-		MAINTAINER dcd-devops-support@hmcts.net
 		LABEL name="CentOS Docker Container" \
 		      vendor="Ministry Of Justice - Reform Project" \
 		      description="Base OS container for MoJ (Reform) Projects" \
